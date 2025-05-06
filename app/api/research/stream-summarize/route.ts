@@ -3,7 +3,7 @@ import { WebSearchTool } from '@/lib/tools/WebSearchTool';
 import { SummarizationTool } from '@/lib/tools/SummarizationTool';
 import { ProcessedSearchResult } from '@/lib/types';
 import { NextResponse } from 'next/server';
-import { sessions } from '../start/route';
+import { sessions } from '@/lib/store/sessions';
 
 export async function POST(request: Request) {
   try {
@@ -23,14 +23,19 @@ export async function POST(request: Request) {
     const currentStep = plan.steps[currentStepIndex];
     currentStep.status = 'in-progress';
     
-    let result: any;
-    
     // Execute the appropriate action based on the step type
-    switch(currentStep.action.type) {
+    let result: ProcessedSearchResult[] | string;
+    
+    switch (currentStep.action.type) {
       case 'search': {
-        const searchTool = new WebSearchTool();
-        const query = currentStep.action.params.query;
-        const searchResults = await searchTool.search(query);
+      const searchTool = new WebSearchTool();
+      const query = currentStep.action.params.query;
+      
+      if (!query) {
+        throw new Error('Search query is required but was not provided');
+      }
+      
+      const searchResults = await searchTool.search(query);
         
         if (!searchResults) {
           throw new Error('Search returned no results');
@@ -51,6 +56,10 @@ export async function POST(request: Request) {
       case 'summarize': {
         const summarizationTool = new SummarizationTool();
         const query = currentStep.action.params.query;
+        
+        if (!query) {
+          throw new Error('Summarization query is required but was not provided');
+        }
         
         // Find the search results from dependencies
         let searchResults: ProcessedSearchResult[] = [];
@@ -99,6 +108,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error executing research step:', error);
-    return NextResponse.json({ error: 'Failed to execute research step' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to execute research step',
+      details: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }

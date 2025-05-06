@@ -1,6 +1,6 @@
 // app/api/research/dig-deeper/route.ts
 import { NextResponse } from 'next/server';
-import { sessions } from '../start/route';
+import { sessions } from '@/lib/store/sessions';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import { ResearchStep } from '@/lib/types';
@@ -60,7 +60,8 @@ export async function POST(request: Request) {
     
     try {
       additionalSteps = JSON.parse(additionalStepsText);
-    } catch (e) {
+    } catch {
+      // Try to extract JSON array from the text using regex if direct parsing fails
       const jsonMatch = additionalStepsText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         additionalSteps = JSON.parse(jsonMatch[0]);

@@ -3,9 +3,7 @@ import { ResearchPlanner } from '@/lib/tools/ResearchPlanner';
 import { ResearchSession } from '@/lib/types';
 import { NextResponse } from 'next/server';
 import { generateSessionId } from '@/lib/types/utils';
-
-// In-memory store (replace with database in production)
-const sessions: Record<string, ResearchSession> = {};
+import { sessions } from '@/lib/store/sessions';
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +27,8 @@ export async function POST(request: Request) {
     
     // Store the session
     sessions[sessionId] = session;
+    console.log('Created new session:', sessionId);
+    console.log('Current sessions:', Object.keys(sessions));
     
     return NextResponse.json({ 
       sessionId, 
@@ -39,5 +39,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create research plan' }, { status: 500 });
   }
 }
-
-export { sessions };

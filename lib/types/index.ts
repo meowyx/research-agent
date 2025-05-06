@@ -5,7 +5,15 @@ export interface ResearchStep {
     status: 'pending' | 'in-progress' | 'completed' | 'failed';
     action: {
       type: 'search' | 'summarize' | 'fetch_webpage' | 'fetch_paper' | 'fetch_github';
-      params: Record<string, any>;
+      params: {
+        query?: string;
+        url?: string;
+        paperId?: string;
+        repoUrl?: string;
+        artifactIds?: string[];
+        focusQuestion?: string;
+        [key: string]: unknown;  // For any additional properties
+      };
     };
     dependencies?: number[];
   }
@@ -42,11 +50,11 @@ export interface ResearchStep {
     image?: string;
   }
   
-  export interface ResearchArtifact {
-    taskId: number;
-    taskType: string;
-    artifact: string | ProcessedSearchResult[];
-  }
+export interface ResearchArtifact {
+  taskId: number;
+  taskType: string;
+  artifact: string | ProcessedSearchResult[] | Record<string, unknown>; // More specific than any
+}
   
   export interface ResearchSession {
     id: string;

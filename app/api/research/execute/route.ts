@@ -3,13 +3,21 @@ import { WebSearchTool } from '@/lib/tools/WebSearchTool';
 import { SummarizationTool } from '@/lib/tools/SummarizationTool';
 import { ProcessedSearchResult } from '@/lib/types';
 import { NextResponse } from 'next/server';
-import { sessions } from '../start/route';
+import { sessions } from '@/lib/store/sessions';
 
 export async function POST(request: Request) {
   try {
     const { sessionId } = await request.json();
     
-    if (!sessionId || !sessions[sessionId]) {
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
+    }
+    
+    console.log('Executing step for session:', sessionId);
+    console.log('Available sessions:', Object.keys(sessions));
+    
+    if (!sessions[sessionId]) {
+      console.error('Session not found:', sessionId);
       return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
     }
     
@@ -23,60 +31,86 @@ export async function POST(request: Request) {
     const currentStep = plan.steps[currentStepIndex];
     currentStep.status = 'in-progress';
     
-    let result: any;
-    
     // Execute the appropriate action based on the step type
-    switch(currentStep.action.type) {
+    let result: ProcessedSearchResult[] | string;
+    
+    switch (currentStep.action.type) {
       case 'search': {
-        const searchTool = new WebSearchTool();
-        const query = currentStep.action.params.query;
-        const searchResults = await searchTool.search(query);
-        
-        if (!searchResults) {
-          throw new Error('Search returned no results');
+        try {
+          const searchTool = new WebSearchTool();
+          const query = currentStep.action.params.query;
+          
+          if (!query) {
+            throw new Error('Search query is required but was not provided');
+          }
+          
+          console.log('Executing search for query:', query);
+          
+          const searchResults = await searchTool.search(query);
+          console.log('Search results:', searchResults);
+          
+          const processedResults = searchTool.processResults(searchResults);
+          console.log('Processed search results:', processedResults);
+          
+          result = processedResults;
+          
+          // Store the artifact
+          artifacts.push({
+            taskId: currentStep.id,
+            taskType: 'search',
+            artifact: processedResults
+          });
+        } catch (error) {
+          console.error('Error in search step:', error);
+          throw new Error(`Search step failed: ${error instanceof Error ? error.message : String(error)}`);
         }
-        
-        const processedResults = searchTool.processResults(searchResults);
-        result = processedResults;
-        
-        // Store the artifact
-        artifacts.push({
-          taskId: currentStep.id,
-          taskType: 'search',
-          artifact: processedResults
-        });
         break;
       }
       
       case 'summarize': {
-        const summarizationTool = new SummarizationTool();
-        const query = currentStep.action.params.query;
-        
-        // Find the search results from dependencies
-        let searchResults: ProcessedSearchResult[] = [];
-        
-        if (currentStep.dependencies) {
-          for (const depId of currentStep.dependencies) {
-            const depArtifact = artifacts.find(a => a.taskId === depId);
-            if (depArtifact && depArtifact.taskType === 'search') {
-              searchResults = depArtifact.artifact as ProcessedSearchResult[];
+        try {
+          const summarizationTool = new SummarizationTool();
+          const query = currentStep.action.params.query;
+          
+          if (!query) {
+            throw new Error('Summarization query is required but was not provided');
+          }
+          
+          console.log('Executing summarize for query:', query);
+          
+          // Find the search results from dependencies
+          let searchResults: ProcessedSearchResult[] = [];
+          
+          if (currentStep.dependencies) {
+            for (const depId of currentStep.dependencies) {
+              const depArtifact = artifacts.find(a => a.taskId === depId);
+              if (depArtifact && depArtifact.taskType === 'search') {
+                searchResults = depArtifact.artifact as ProcessedSearchResult[];
+              }
             }
           }
+          
+          if (searchResults.length === 0) {
+            console.error('No search results found for summarization');
+            throw new Error('No search results found for summarization');
+          }
+          
+          console.log('Found search results for summarization:', searchResults);
+          const summary = await summarizationTool.summarize(query, searchResults);
+          console.log('Generated summary:', summary);
+          
+          result = summary;
+          
+          // Store the artifact
+          artifacts.push({
+            taskId: currentStep.id,
+            taskType: 'summarize',
+            artifact: summary
+          });
+        } catch (error) {
+          console.error('Error in summarize step:', error);
+          throw new Error(`Summarize step failed: ${error instanceof Error ? error.message : String(error)}`);
         }
-        
-        if (searchResults.length === 0) {
-          throw new Error('No search results found for summarization');
-        }
-        
-        const summary = await summarizationTool.summarize(query, searchResults);
-        result = summary;
-        
-        // Store the artifact
-        artifacts.push({
-          taskId: currentStep.id,
-          taskType: 'summarize',
-          artifact: summary
-        });
         break;
       }
       
@@ -99,6 +133,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error executing research step:', error);
-    return NextResponse.json({ error: 'Failed to execute research step' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to execute research step',
+      details: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 }

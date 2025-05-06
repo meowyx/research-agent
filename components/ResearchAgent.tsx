@@ -2,14 +2,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Globe, FileText, Github, ArrowRight, ArrowDown } from "lucide-react";
+import { Search, ArrowRight, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ResearchPlan, ResearchStep, ProcessedSearchResult, ResearchArtifact } from "@/lib/types";
+import { ResearchPlan, ProcessedSearchResult, ResearchArtifact, ResearchStep } from "@/lib/types";
+// Note: Run `npm install framer-motion` or `yarn add framer-motion` to install this dependency
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 export default function ResearchAgent() {
+  // Check if user prefers reduced motion
+  const prefersReducedMotion = useReducedMotion();
+
   // State management
   const [query, setQuery] = useState<string>("");
   const [isResearching, setIsResearching] = useState<boolean>(false);
@@ -19,6 +24,32 @@ export default function ResearchAgent() {
   const [summary, setSummary] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("plan");
   const [error, setError] = useState<string>("");
+  
+  // Track active features for animations
+  const [activeFeatures, setActiveFeatures] = useState<{
+    search: boolean;
+    planning: boolean;
+    quality: boolean;
+    synthesis: boolean;
+    depth: boolean;
+  }>({
+    search: false,
+    planning: false,
+    quality: false,
+    synthesis: false,
+    depth: false
+  });
+
+  // Track active workflow stages
+  const [activeWorkflowStage, setActiveWorkflowStage] = useState<{
+    planning: boolean;
+    evaluation: boolean;
+    digDeeper: boolean;
+  }>({
+    planning: false,
+    evaluation: false,
+    digDeeper: false
+  });
 
   // Start research
   const startResearch = async () => {
@@ -63,6 +94,10 @@ export default function ResearchAgent() {
       // Initial wait to give time for UI update
       await new Promise(resolve => setTimeout(resolve, 500));
       
+      // Activate planning feature indicator and workflow stage
+      setActiveFeatures(prev => ({ ...prev, planning: true }));
+      setActiveWorkflowStage(prev => ({ ...prev, planning: true, evaluation: false, digDeeper: false }));
+      
       while (true) {
         const response = await fetch('/api/research/execute', {
           method: 'POST',
@@ -88,7 +123,7 @@ export default function ResearchAgent() {
           
           const updatedSteps = prev.steps.map(step => 
             step.id === data.stepId 
-              ? { ...step, status: 'completed' } 
+              ? { ...step, status: 'completed' as const } 
               : step
           );
           
@@ -108,10 +143,19 @@ export default function ResearchAgent() {
               }
             ]);
             
-            // If this is a summary step, update the summary state
-            if (stepInfo.action.type === 'summarize') {
+            // Update active feature indicators based on step type
+            if (stepInfo.action.type === 'search') {
+              setActiveFeatures(prev => ({ ...prev, search: true, planning: false }));
+              setActiveWorkflowStage(prev => ({ ...prev, planning: false, evaluation: true }));
+            } else if (stepInfo.action.type === 'summarize') {
+              setActiveFeatures(prev => ({ ...prev, synthesis: true, quality: false }));
+              setActiveWorkflowStage(prev => ({ ...prev, planning: false, evaluation: false }));
               setSummary(data.result);
               setActiveTab('summary');
+            } else {
+              // For other action types like fetch_webpage, fetch_paper, fetch_github
+              setActiveFeatures(prev => ({ ...prev, quality: true, search: false }));
+              setActiveWorkflowStage(prev => ({ ...prev, planning: false, evaluation: true }));
             }
           }
         }
@@ -119,6 +163,21 @@ export default function ResearchAgent() {
         // If plan is complete, break the loop
         if (data.isComplete) {
           setIsResearching(false);
+          // Reset active features and workflow stages after a delay
+          setTimeout(() => {
+            setActiveFeatures({
+              search: false,
+              planning: false,
+              quality: false,
+              synthesis: false,
+              depth: false
+            });
+            setActiveWorkflowStage({
+              planning: false,
+              evaluation: false,
+              digDeeper: false
+            });
+          }, 2000);
           break;
         }
         
@@ -138,6 +197,10 @@ export default function ResearchAgent() {
     setIsResearching(true);
     setError('');
     
+    // Activate depth feature indicator and workflow stage
+    setActiveFeatures(prev => ({ ...prev, depth: true }));
+    setActiveWorkflowStage(prev => ({ ...prev, planning: false, evaluation: false, digDeeper: true }));
+    
     try {
       // Create additional steps using GPT-4
       const response = await fetch('/api/research/dig-deeper', {
@@ -155,9 +218,16 @@ export default function ResearchAgent() {
       // Add new steps to the research plan
       setResearchPlan(prev => {
         if (!prev) return null;
+        
+        // Ensure the steps have the correct type for status
+        const typedSteps = data.additionalSteps.map((step: ResearchStep) => ({
+          ...step,
+          status: step.status as 'pending' | 'in-progress' | 'completed' | 'failed'
+        }));
+        
         return {
           ...prev,
-          steps: [...prev.steps, ...data.additionalSteps]
+          steps: [...prev.steps, ...typedSteps]
         };
       });
       
@@ -167,6 +237,195 @@ export default function ResearchAgent() {
       setError('Failed to dig deeper: ' + (error instanceof Error ? error.message : 'Unknown error'));
       setIsResearching(false);
     }
+  };
+
+  // Feature Card Component with animations
+  const FeatureCard = ({ 
+    icon, 
+    title, 
+    description, 
+    isActive 
+  }: { 
+    icon: React.ReactNode; 
+    title: string; 
+    description: string; 
+    isActive: boolean;
+  }) => {
+    return (
+      <motion.div
+        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer
+                    ${isActive 
+                      ? 'bg-primary/10 border border-primary/20' 
+                      : 'hover:bg-muted'} 
+                    transition-colors shadow-sm
+                    dark:bg-opacity-5 dark:shadow-inner
+                    ${isActive ? 'shadow-inner' : 'hover:shadow-md'}
+                    `}
+          initial={{ opacity: 0.9, x: -10 }}
+        animate={{ 
+          opacity: 1, 
+          x: 0,
+          y: isActive && !prefersReducedMotion ? [0, -5, 0] : 0,
+          transition: {
+            y: isActive && !prefersReducedMotion ? { repeat: Infinity, duration: 1.5, repeatType: "reverse" } : {}
+          }
+        }}
+        exit={{ opacity: 0, x: 10 }}
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+        whileHover={{ 
+          scale: prefersReducedMotion ? 1 : 1.02, 
+          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        }}
+        style={{
+          willChange: 'transform, opacity',
+          transform: 'translateZ(0)'
+        }}
+        role="region"
+        aria-label={`${title} feature ${isActive ? 'active' : 'inactive'}`}
+      >
+        <motion.div
+          animate={{
+            rotate: isActive && !prefersReducedMotion ? [0, 15, 0, -15, 0] : 0,
+            scale: isActive && !prefersReducedMotion ? [1, 1.2, 1] : 1,
+            color: isActive ? "#6366F1" : "#71717A"
+          }}
+          transition={{
+            duration: 0.8,
+            repeat: isActive && !prefersReducedMotion ? Infinity : 0,
+            repeatType: "reverse",
+            repeatDelay: 1
+          }}
+          className={`mt-1 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+          style={{ willChange: 'transform' }}
+          aria-hidden="true"
+        >
+          {icon}
+        </motion.div>
+        <div>
+          <motion.span 
+            className="font-medium block"
+            animate={{ color: isActive ? "#6366F1" : "#000000" }}
+            transition={{ duration: 0.3 }}
+          >
+            {title}
+          </motion.span>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          {isActive && (
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 1.5 }}
+              className="h-0.5 bg-primary mt-2 rounded-full"
+            />
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Workflow Step Component with animations
+  const WorkflowStep = ({ 
+    icon, 
+    title, 
+    description, 
+    isActive,
+    isLast = false
+  }: { 
+    icon: React.ReactNode; 
+    title: string; 
+    description: string; 
+    isActive: boolean;
+    isLast?: boolean;
+  }) => {
+    return (
+      <div className="relative">
+        <motion.div
+          className={`flex items-start gap-3 p-4 rounded-lg
+                    ${isActive 
+                      ? 'bg-primary/10 border border-primary/20' 
+                      : ''} 
+                    transition-colors
+                    ${isActive ? 'shadow-inner' : ''}
+                    `}
+          initial={{ opacity: 0.8, y: 20 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            x: isActive && !prefersReducedMotion ? [0, 5, 0] : 0,
+            transition: {
+              y: { type: "spring", stiffness: 300, damping: 15 },
+              x: isActive && !prefersReducedMotion ? { repeat: Infinity, duration: 2, repeatType: "reverse" } : {}
+            }
+          }}
+          exit={{ opacity: 0, y: -20 }}
+          style={{
+            willChange: 'transform, opacity',
+            transform: 'translateZ(0)'
+          }}
+          role="region"
+          aria-label={`${title} workflow stage ${isActive ? 'active' : 'inactive'}`}
+        >
+          <div className="relative z-10">
+            <motion.div
+              animate={{
+                scale: isActive ? [1, 1.2, 1] : 1,
+                color: isActive ? "#6366F1" : "#71717A"
+              }}
+              transition={{
+                duration: 1,
+                repeat: isActive ? Infinity : 0,
+                repeatType: "reverse"
+              }}
+              className={`mt-1 p-2 rounded-full bg-muted
+                ${isActive ? 'text-primary bg-primary/20' : 'text-muted-foreground'}
+              `}
+            >
+              {icon}
+            </motion.div>
+          </div>
+          
+          <div className="flex-1">
+            <motion.p 
+              className="font-medium"
+              animate={{ color: isActive ? "#6366F1" : "#000000" }}
+              transition={{ duration: 0.3 }}
+            >
+              {title}
+            </motion.p>
+            <p className="text-sm text-muted-foreground">{description}</p>
+            {isActive && (
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1.5 }}
+                className="h-0.5 bg-primary mt-2 rounded-full"
+              />
+            )}
+          </div>
+        </motion.div>
+        
+        {!isLast && (
+          <motion.div 
+            className="absolute left-[1.65rem] top-[3.5rem] w-[2px] h-[calc(100%-1rem)] bg-muted"
+            initial={{ height: 0 }}
+            animate={{ 
+              height: "calc(100% - 1rem)",
+              background: isActive && !prefersReducedMotion ? 
+                ["#e2e8f0", "#6366F1", "#e2e8f0"] : 
+                "#e2e8f0"
+            }}
+            transition={{
+              height: { duration: 0.5 },
+              background: isActive && !prefersReducedMotion ? 
+                { repeat: Infinity, duration: 1.5, repeatType: "reverse" } : 
+                { duration: 0.5 }
+            }}
+            style={{ willChange: 'opacity, background' }}
+            aria-hidden="true"
+          />
+        )}
+      </div>
+    );
   };
 
   // Render the UI
@@ -206,31 +465,61 @@ export default function ResearchAgent() {
               </CardFooter>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span>Available Tools</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors">
-                  <Search className="h-5 w-5" />
-                  <span>Search Web</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors">
-                  <Globe className="h-5 w-5" />
-                  <span>Visit Web Page</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors">
-                  <FileText className="h-5 w-5" />
-                  <span>Visit Scientific Paper</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors">
-                  <Github className="h-5 w-5" />
-                  <span>Visit GitHub Repo</span>
-                </div>
-              </CardContent>
-            </Card>
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Card className="overflow-hidden bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 shadow-md hover:shadow-lg transition-shadow duration-300 border border-slate-200 dark:border-slate-800">
+                <CardHeader className="pb-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7 }}
+                    className="flex items-center gap-2"
+                  >
+                    <CardTitle>Advanced Features</CardTitle>
+                  </motion.div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <AnimatePresence>
+                    <FeatureCard 
+                      icon={<Search className="h-5 w-5" />}
+                      title="Intelligent Web Search"
+                      description="Scans and evaluates multiple high-quality sources"
+                      isActive={activeFeatures.search}
+                    />
+                    
+                    <FeatureCard 
+                      icon={<ArrowRight className="h-5 w-5" />}
+                      title="Strategic Research Planning"
+                      description="Creates clear research plans with specific steps"
+                      isActive={activeFeatures.planning}
+                    />
+                    
+                    <FeatureCard 
+                      icon={<ArrowRight className="h-5 w-5" />}
+                      title="Quality Assessment"
+                      description="Establishes evaluation criteria for information quality"
+                      isActive={activeFeatures.quality}
+                    />
+                    
+                    <FeatureCard 
+                      icon={<ArrowRight className="h-5 w-5" />}
+                      title="Comprehensive Synthesis"
+                      description="Synthesizes findings into coherent summaries"
+                      isActive={activeFeatures.synthesis}
+                    />
+                    
+                    <FeatureCard 
+                      icon={<ArrowDown className="h-5 w-5" />}
+                      title="Adaptive Research Depth"
+                      description="Determines when to explore topics more deeply"
+                      isActive={activeFeatures.depth}
+                    />
+                  </AnimatePresence>
+                </CardContent>
+              </Card>
+            </motion.div>
 
             <Card>
               <CardHeader>
@@ -252,43 +541,66 @@ export default function ResearchAgent() {
 
           {/* Right panel - Results and workflow */}
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Agent Workflow</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <ArrowRight className="h-5 w-5 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Planning Agent</p>
-                    <p className="text-sm text-muted-foreground">
-                      A first agent creates a research plan with specific steps to follow
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <ArrowRight className="h-5 w-5 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Evaluation Agent</p>
-                    <p className="text-sm text-muted-foreground">
-                      A secondary agent judges if the search results are good enough
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <ArrowRight className="h-5 w-5 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Dig Deeper</p>
-                    <p className="text-sm text-muted-foreground">Explore topics in greater depth when needed</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Card className="overflow-hidden bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 shadow-md hover:shadow-lg transition-shadow duration-300 border border-slate-200 dark:border-slate-800">
+                <CardHeader className="pb-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7 }}
+                    className="flex items-center gap-2"
+                  >
+                    <CardTitle>Agent Workflow</CardTitle>
+                  </motion.div>
+                </CardHeader>
+                <CardContent className="pt-2 pb-4">
+                  <AnimatePresence>
+                    <div className="space-y-0">
+                      <WorkflowStep 
+                        icon={<ArrowRight className="h-5 w-5" />}
+                        title="Planning Agent"
+                        description="Creates a research plan with specific steps to follow"
+                        isActive={activeWorkflowStage.planning}
+                      />
+                      
+                      <WorkflowStep 
+                        icon={<ArrowRight className="h-5 w-5" />}
+                        title="Evaluation Agent"
+                        description="Judges if the search results are good enough"
+                        isActive={activeWorkflowStage.evaluation}
+                      />
+                      
+                      <WorkflowStep 
+                        icon={<ArrowDown className="h-5 w-5" />}
+                        title="Dig Deeper"
+                        description="Explores topics in greater depth when needed"
+                        isActive={activeWorkflowStage.digDeeper}
+                        isLast={true}
+                      />
+                    </div>
+                  </AnimatePresence>
+                </CardContent>
+                
+                {isResearching && (
+                  <motion.div
+                    className="h-1 bg-primary/20"
+                    initial={{ width: "0%" }}
+                    animate={{ 
+                      width: "100%",
+                      transition: { duration: 3, repeat: Infinity }
+                    }}
+                  />
+                )}
+              </Card>
+            </motion.div>
 
             <Card>
               <CardHeader>
                 <CardTitle>Research Results</CardTitle>
-                {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+                {error && <p className="text-red-500 text-sm mt-2" role="alert">{error}</p>}
               </CardHeader>
               <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -305,9 +617,9 @@ export default function ResearchAgent() {
                         <div 
                           key={step.id} 
                           className={`p-4 border rounded-md ${
-                            step.status === 'completed' ? 'bg-green-50 border-green-200' :
-                            step.status === 'in-progress' ? 'bg-blue-50 border-blue-200' :
-                            step.status === 'failed' ? 'bg-red-50 border-red-200' :
+                            step.status === 'completed' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' :
+                            step.status === 'in-progress' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700' :
+                            step.status === 'failed' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700' :
                             'bg-muted/50'
                           }`}
                         >
