@@ -1,7 +1,7 @@
 import { ProcessedSearchResult } from '../types';
 
 export class SummarizationTool {
-  private readonly API_URL = 'https://llama70b.gaia.domains/v1/chat/completions';
+  private readonly API_URL = 'https://llama70b.gaia.domains/v1/';
 
   async summarize(query: string, searchResults: ProcessedSearchResult[]): Promise<string> {
     try {
