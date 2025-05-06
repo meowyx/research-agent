@@ -63,7 +63,7 @@ To use your own Gaia node with this application, follow these steps:
 4. **Update Your Application**:
    - Modify the API endpoint to point to your local node:
    ```typescript
-   const GAIA_API_ENDPOINT = 'http://gaiaURL/v1';
+   const GAIA_API_ENDPOINT = 'URL';
    const GAIA_MODEL = 'Llama-3-Groq-8B-Tool';
    ```
 
@@ -113,7 +113,7 @@ If running your own node, ensure your system meets these requirements:
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone git@github.com:meowyx/research-agent.git
 cd research-agent
 ```
 
@@ -122,12 +122,25 @@ cd research-agent
 pnpm install
 ```
 
-3. Start the development server:
+3. Set up environment variables:
+```bash
+# Create a .env file in the root directory
+touch .env
+```
+
+Add the following environment variables to your `.env` file:
+
+```env
+GAIA_MODEL_BASE_URL=
+GAIA_API_KEY=
+BRAVE_API_KEY=your_brave_api_key
+```
+4. Start the development server:
 ```bash
 pnpm dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Project Structure
 
