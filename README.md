@@ -132,14 +132,48 @@ pnpm dev
 ## Project Structure
 
 ```
-research-agent/
-├── app/              # Next.js app directory
-│   ├── api/         # API routes
-│   └── page.tsx     # Main page
-├── components/      # React components
-│   └── ui/         # UI components
-├── lib/            # Utility functions and types
-└── public/         # Static assets
+RESEARCH-AGENT/
+├── app/                        # Main application directory
+│   ├── api/                    # API routes
+│   │   └── research/          # Research API endpoints
+│   │       ├── dig-deeper/    # Deep research functionality
+│   │       │   └── route.ts
+│   │       ├── execute/       # Research execution
+│   │       │   └── route.ts
+│   │       ├── start/         # Start research process
+│   │       │   └── route.ts
+│   │       └── stream-summarize/ # Streaming summarization
+│   │           └── route.ts
+│   ├── favicon.ico            # Site favicon
+│   ├── globals.css            # Global CSS styles
+│   ├── layout.tsx             # Root layout component
+│   └── page.tsx               # Main page component
+├── components/                # Reusable UI components
+│   ├── ui/                    # UI component library
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── tabs.tsx
+│   │   └── textarea.tsx
+│   └── ResearchAgent.tsx      # Main research agent component
+├── lib/                       # Library code and utilities
+│   ├── ai/                    # AI-related functionality
+│   │   └── config.ts         # AI configuration settings
+│   ├── store/                 # State management
+│   │   └── sessions.ts       # Session management
+│   ├── tools/                 # Research tools
+│   │   ├── ResearchPlanner.ts # Research planning tool
+│   │   ├── SummarizationTool.ts # Content summarization tool
+│   │   └── WebSearchTool.ts   # Web search functionality
+│   └── types/                 # TypeScript type definitions
+│       ├── index.ts          # Main type exports
+│       └── utils.ts          # Utility types
+├── public/                    # Static assets
+│  
+├── .env.example               # Environment variables example
+├── .gitignore                 # Git ignore file
+├── components.json            # Components configuration
+├── README.md                  # Project documentation
+└── tailwind.config.ts         # Tailwind CSS configuration
 ```
 
 ## Usage
