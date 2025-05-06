@@ -483,6 +483,7 @@ export default function ResearchAgent() {
                 <CardContent className="space-y-3">
                   <AnimatePresence>
                     <FeatureCard 
+                      key="search"
                       icon={<Search className="h-5 w-5" />}
                       title="Intelligent Web Search"
                       description="Scans and evaluates multiple high-quality sources"
@@ -490,6 +491,7 @@ export default function ResearchAgent() {
                     />
                     
                     <FeatureCard 
+                      key="planning"
                       icon={<ArrowRight className="h-5 w-5" />}
                       title="Strategic Research Planning"
                       description="Creates clear research plans with specific steps"
@@ -497,6 +499,7 @@ export default function ResearchAgent() {
                     />
                     
                     <FeatureCard 
+                      key="quality"
                       icon={<ArrowRight className="h-5 w-5" />}
                       title="Quality Assessment"
                       description="Establishes evaluation criteria for information quality"
@@ -504,6 +507,7 @@ export default function ResearchAgent() {
                     />
                     
                     <FeatureCard 
+                      key="synthesis"
                       icon={<ArrowRight className="h-5 w-5" />}
                       title="Comprehensive Synthesis"
                       description="Synthesizes findings into coherent summaries"
@@ -511,6 +515,7 @@ export default function ResearchAgent() {
                     />
                     
                     <FeatureCard 
+                      key="depth"
                       icon={<ArrowDown className="h-5 w-5" />}
                       title="Adaptive Research Depth"
                       description="Determines when to explore topics more deeply"
@@ -560,6 +565,7 @@ export default function ResearchAgent() {
                   <AnimatePresence>
                     <div className="space-y-0">
                       <WorkflowStep 
+                        key="planning"
                         icon={<ArrowRight className="h-5 w-5" />}
                         title="Planning Agent"
                         description="Creates a research plan with specific steps to follow"
@@ -567,6 +573,7 @@ export default function ResearchAgent() {
                       />
                       
                       <WorkflowStep 
+                        key="evaluation"
                         icon={<ArrowRight className="h-5 w-5" />}
                         title="Evaluation Agent"
                         description="Judges if the search results are good enough"
@@ -574,6 +581,7 @@ export default function ResearchAgent() {
                       />
                       
                       <WorkflowStep 
+                        key="dig-deeper"
                         icon={<ArrowDown className="h-5 w-5" />}
                         title="Dig Deeper"
                         description="Explores topics in greater depth when needed"
